@@ -63,7 +63,7 @@ function addExtraImports(ast: ts.SourceFile) {
                 ),
             ]),
         ),
-        ts.factory.createStringLiteral(import.meta.resolve('./html')),
+        ts.factory.createStringLiteral(Bun.fileURLToPath(import.meta.resolve('./html'))),
     ));
     return ts.factory.updateSourceFile(ast, allImports);
 }
