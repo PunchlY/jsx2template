@@ -7,8 +7,7 @@
     ".": "./index.ts",
     "./jsx-runtime": "./jsx-runtime.ts",
     "./jsx-dev-runtime": "./jsx-runtime.ts",
-    "./preload": "./preload.ts",
-    "./type": "./type.ts"
+    "./preload": "./preload.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
