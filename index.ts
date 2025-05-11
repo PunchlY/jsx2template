@@ -4,8 +4,8 @@ function JsxToTemplatePlugin(): Bun.BunPlugin {
     return {
         name: 'jsx-to-template',
         setup(build) {
-            build.onLoad({ filter: /\.[jt]sx$/ }, async (args) => {
-                const file = Bun.file(args.path);
+            build.onLoad({ filter: /\.[jt]sx$/ }, async ({ path, loader }) => {
+                const file = Bun.file(path);
                 const { outputText } = ts.transpileModule(await file.text(), {
                     compilerOptions: {
                         module: ts.ModuleKind.ESNext,
@@ -13,7 +13,7 @@ function JsxToTemplatePlugin(): Bun.BunPlugin {
                         jsx: ts.JsxEmit.Preserve,
                     },
                 });
-                let sourceFile = ts.createSourceFile(args.path, outputText, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
+                let sourceFile = ts.createSourceFile(path, outputText, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
                 sourceFile = addExtraImports(sourceFile);
                 const code = ts
                     .createPrinter()
@@ -22,8 +22,7 @@ function JsxToTemplatePlugin(): Bun.BunPlugin {
                         replaceJsxToTemplateCall(sourceFile),
                         sourceFile,
                     );
-                console.log(code);
-                return { contents: code, loader: 'js' };
+                return { contents: code, loader: loader === 'tsx' ? 'ts' : 'js' };
             });
         },
     };
