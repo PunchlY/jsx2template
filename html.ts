@@ -1,5 +1,5 @@
 
-const HTML = Symbol('HTML');
+const $$typeof = Symbol.for('react.transitional.element');
 
 function attributes(attributes: Record<string, unknown>) {
     let str = '';
@@ -22,27 +22,20 @@ function escapeHTML(value: unknown): string {
         case 'object':
             if (value === null)
                 return '';
-            if (HTML in value)
-                return value[HTML] as string;
+            if (Object.hasOwn(value, '$$typeof') && Reflect.get(value, '$$typeof') === $$typeof)
+                return String(value);
             if (Array.isArray(value))
                 return value.map(escapeHTML).join(' ');
     }
     return Bun.escapeHTML(value!);
 }
 
-function isElement(value: unknown): value is JSX.Element {
-    return value !== undefined && value !== null && Reflect.has(value, HTML);
-}
-
-function toString(this: { [key in typeof HTML]: string; }) {
-    return this[HTML];
-}
-
-export { HTML, attributes, escapeHTML, toString, isElement };
+export { $$typeof, attributes, escapeHTML };
 
 declare global {
     namespace JSX {
         interface Element {
+            $$typeof: symbol;
         }
         interface IntrinsicElements {
             [name: string]: any;

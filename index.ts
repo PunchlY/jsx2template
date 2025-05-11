@@ -28,10 +28,11 @@ function JsxToTemplatePlugin(): Bun.BunPlugin {
     };
 }
 
-const htmlTag = ts.factory.createTempVariable(undefined);
-const attributesTag = ts.factory.createTempVariable(undefined);
-const escapeTag = ts.factory.createTempVariable(undefined);
-const toStringTag = ts.factory.createTempVariable(undefined);
+const htmlTag = /* @__PURE__ */ ts.factory.createTempVariable(undefined);
+
+function nameImport(name: keyof typeof import('./html')) {
+    return ts.factory.createPropertyAccessExpression(htmlTag, name);
+}
 
 function addExtraImports(ast: ts.SourceFile) {
     const allImports = [...ast.statements];
@@ -40,28 +41,7 @@ function addExtraImports(ast: ts.SourceFile) {
         ts.factory.createImportClause(
             false,
             undefined,
-            ts.factory.createNamedImports([
-                ts.factory.createImportSpecifier(
-                    false,
-                    ts.factory.createIdentifier('HTML'),
-                    htmlTag,
-                ),
-                ts.factory.createImportSpecifier(
-                    false,
-                    ts.factory.createIdentifier('attributes'),
-                    attributesTag,
-                ),
-                ts.factory.createImportSpecifier(
-                    false,
-                    ts.factory.createIdentifier('escapeHTML'),
-                    escapeTag,
-                ),
-                ts.factory.createImportSpecifier(
-                    false,
-                    ts.factory.createIdentifier('toString'),
-                    toStringTag,
-                ),
-            ]),
+            ts.factory.createNamespaceImport(htmlTag),
         ),
         ts.factory.createStringLiteral(Bun.fileURLToPath(import.meta.resolve('./html'))),
     ));
@@ -72,7 +52,7 @@ function replaceJsxToTemplateCall<T extends ts.Node>(node: T): T;
 function replaceJsxToTemplateCall(node: ts.JsxFragment | ts.JsxElement): ts.ObjectLiteralExpression;
 function replaceJsxToTemplateCall<T extends ts.Node>(node: T): T | ts.ObjectLiteralExpression {
     if (ts.isJsxFragment(node) || ts.isJsxElement(node))
-        return transformation(node, true);
+        return transformation(node);
     return ts.visitEachChild(node, replaceJsxToTemplateCall, undefined);
 }
 
@@ -91,7 +71,7 @@ function parse(node: ts.JsxChild, strings = [''], expressions: ts.Expression[] =
                 strings[strings.length - 1] += Bun.escapeHTML(expression.text);
             } else {
                 expressions.push(ts.factory.createCallExpression(
-                    escapeTag,
+                    nameImport('escapeHTML'),
                     undefined,
                     [expression],
                 ));
@@ -115,39 +95,44 @@ function parse(node: ts.JsxChild, strings = [''], expressions: ts.Expression[] =
                 || tagName.kind === ts.SyntaxKind.ThisKeyword
                 || tagName.kind === ts.SyntaxKind.PropertyAccessExpression
             ) {
-                expressions.push(ts.factory.createElementAccessExpression(
-                    ts.factory.createCallExpression(
+                if (children && children.length) {
+                    const childrenElements = children.flatMap((child) => {
+                        if (child.kind === ts.SyntaxKind.JsxText) {
+                            if (child.containsOnlyTriviaWhiteSpaces)
+                                return [];
+                            return ts.factory.createStringLiteral(
+                                child.text
+                                    .replaceAll(/^\s*\n\s*|\s*\n\s*$/g, '')
+                                    .replaceAll(/\s+/g, ' '),
+                            );
+                        }
+                        if (child.kind === ts.SyntaxKind.JsxExpression) {
+                            return replaceJsxToTemplateCall(child.expression!);
+                        }
+                        return transformation(child);
+                    });
+                    expressions.push(ts.factory.createCallExpression(
                         tagName,
                         undefined,
-                        [ts.factory.createObjectLiteralExpression(children && children.length
-                            ? [
-                                ...JsxAttributesToObjectLiteralElements(attributes),
-                                ts.factory.createPropertyAssignment(
-                                    'children',
-                                    children.length === 1 && children[0]?.kind === ts.SyntaxKind.JsxText
-                                        ? ts.factory.createStringLiteral(children[0].text)
-                                        : ts.factory.createArrayLiteralExpression(children.flatMap((child) => {
-                                            if (child.kind === ts.SyntaxKind.JsxText) {
-                                                if (child.containsOnlyTriviaWhiteSpaces)
-                                                    return [];
-                                                return ts.factory.createStringLiteral(
-                                                    child.text
-                                                        .replaceAll(/^\s*\n\s*|\s*\n\s*$/g, '')
-                                                        .replaceAll(/\s+/g, ' '),
-                                                );
-                                            }
-                                            if (child.kind === ts.SyntaxKind.JsxExpression) {
-                                                return replaceJsxToTemplateCall(child.expression!);
-                                            }
-                                            return transformation(child);
-                                        })),
-                                ),
-                            ]
-                            : [...JsxAttributesToObjectLiteralElements(attributes)],
+                        [ts.factory.createObjectLiteralExpression([
+                            ...JsxAttributesToObjectLiteralElements(attributes),
+                            ts.factory.createPropertyAssignment(
+                                'children',
+                                childrenElements.length === 1
+                                    ? childrenElements[0]!
+                                    : ts.factory.createArrayLiteralExpression(childrenElements),
+                            ),
+                        ])],
+                    ));
+                } else {
+                    expressions.push(ts.factory.createCallExpression(
+                        tagName,
+                        undefined,
+                        [ts.factory.createObjectLiteralExpression(
+                            [...JsxAttributesToObjectLiteralElements(attributes)],
                         )],
-                    ),
-                    htmlTag,
-                ));
+                    ));
+                }
                 strings.push('');
             } else {
                 const tagNameText = tagName.kind === ts.SyntaxKind.JsxNamespacedName
@@ -157,7 +142,7 @@ function parse(node: ts.JsxChild, strings = [''], expressions: ts.Expression[] =
                 const attes = [...JsxAttributesToObjectLiteralElements(attributes)];
                 if (attes.length) {
                     expressions.push(ts.factory.createCallExpression(
-                        attributesTag,
+                        nameImport('attributes'),
                         undefined,
                         [ts.factory.createObjectLiteralExpression(attes)],
                     ));
@@ -177,27 +162,31 @@ function parse(node: ts.JsxChild, strings = [''], expressions: ts.Expression[] =
     return { strings, expressions };
 }
 
-function transformation(node: ts.JsxChild, isRoot = false) {
+function transformation(node: ts.JsxChild) {
     const { strings, expressions } = parse(node);
-    const properties: ts.ObjectLiteralElementLike[] = isRoot
-        ? [ts.factory.createPropertyAssignment('toString', toStringTag)]
-        : [];
+    let returnValue;
     if (strings.length === 1) {
-        properties.push(ts.factory.createPropertyAssignment(
-            ts.factory.createComputedPropertyName(htmlTag),
-            ts.factory.createNoSubstitutionTemplateLiteral(strings[0]!),
-        ));
+        returnValue = ts.factory.createNoSubstitutionTemplateLiteral(strings[0]!);
     } else {
         const head = ts.factory.createTemplateHead(strings.shift()!);
         const tail = ts.factory.createTemplateTail(strings.pop()!);
         const middles = strings.map((s) => ts.factory.createTemplateMiddle(s));
         const spans = [...middles, tail].map((s, i) => ts.factory.createTemplateSpan(expressions[i]!, s));
-        properties.push(ts.factory.createPropertyAssignment(
-            ts.factory.createComputedPropertyName(htmlTag),
-            ts.factory.createTemplateExpression(head, spans),
-        ));
+        returnValue = ts.factory.createTemplateExpression(head, spans);
     }
-    return ts.factory.createObjectLiteralExpression(properties);
+    return ts.factory.createObjectLiteralExpression([
+        ts.factory.createPropertyAssignment('$$typeof', nameImport('$$typeof')),
+        ts.factory.createMethodDeclaration(
+            [],
+            undefined,
+            'toString',
+            undefined,
+            [],
+            [],
+            undefined,
+            ts.factory.createBlock([ts.factory.createReturnStatement(returnValue)]),
+        ),
+    ]);
 }
 
 function* JsxAttributesToObjectLiteralElements({ properties }: ts.JsxAttributes) {

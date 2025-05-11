@@ -1,13 +1,14 @@
 {
   "name": "jsx2template",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "module": "index.ts",
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",
     "./jsx-runtime": "./jsx-runtime.ts",
     "./jsx-dev-runtime": "./jsx-runtime.ts",
-    "./preload": "./preload.ts"
+    "./preload": "./preload.ts",
+    "./type": "./type.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

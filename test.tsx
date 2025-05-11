@@ -1,7 +1,7 @@
 const i = 0;
 const data = { uid: 101, pid: 100 };
 
-console.debug(<>
+console.debug('%s', <>
     <p>text<a href={'/api/test'} key={1}>
         foo
         foo
@@ -17,8 +17,8 @@ console.debug(<>
         2
         {[3, , 4]}
         {{}}
-        {true} <Element></Element>
-        {console.log(<p></p>)}
+        {true} <Element uid={1}></Element>
+        {'' + <Element></Element>}
     </Element>
     <Element></Element>
     <Element uid={100} />
