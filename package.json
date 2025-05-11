@@ -1,0 +1,20 @@
+{
+  "name": "jsx2template",
+  "version": "1.0.0",
+  "module": "index.ts",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./jsx-runtime": "./jsx-runtime.ts",
+    "./jsx-dev-runtime": "./jsx-runtime.ts",
+    "./preload": "./preload.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "private": true,
+  "type": "module"
+}
