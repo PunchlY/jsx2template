@@ -1,18 +1,19 @@
 import ts from 'typescript';
 
-function JsxToTemplatePlugin(): Bun.BunPlugin {
+function JsxToTemplatePlugin(transpileOptions?: ts.TranspileOptions): Bun.BunPlugin {
+    transpileOptions = {
+        ...transpileOptions,
+        compilerOptions: {
+            ...transpileOptions?.compilerOptions,
+            jsx: ts.JsxEmit.Preserve,
+        },
+    };
     return {
         name: 'jsx-to-template',
         setup(build) {
             build.onLoad({ filter: /\.[jt]sx$/ }, async ({ path, loader }) => {
                 const file = Bun.file(path);
-                const { outputText } = ts.transpileModule(await file.text(), {
-                    compilerOptions: {
-                        module: ts.ModuleKind.ESNext,
-                        target: ts.ScriptTarget.ESNext,
-                        jsx: ts.JsxEmit.Preserve,
-                    },
-                });
+                const { outputText } = ts.transpileModule(await file.text(), transpileOptions);
                 let sourceFile = ts.createSourceFile(path, outputText, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
                 sourceFile = addExtraImports(sourceFile);
                 const code = ts
