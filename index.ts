@@ -1,29 +1,17 @@
 import ts from 'typescript';
 
-function JsxToTemplatePlugin(transpileOptions?: ts.TranspileOptions): Bun.BunPlugin {
-    transpileOptions = {
-        ...transpileOptions,
-        compilerOptions: {
-            ...transpileOptions?.compilerOptions,
-            jsx: ts.JsxEmit.Preserve,
-        },
-    };
+function JsxToTemplatePlugin(): Bun.BunPlugin {
     return {
         name: 'jsx-to-template',
         setup(build) {
+            const printer = ts.createPrinter();
             build.onLoad({ filter: /\.[jt]sx$/ }, async ({ path, loader }) => {
                 const file = Bun.file(path);
-                const { outputText } = ts.transpileModule(await file.text(), transpileOptions);
-                let sourceFile = ts.createSourceFile(path, outputText, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
-                sourceFile = addExtraImports(sourceFile);
-                const code = ts
-                    .createPrinter()
-                    .printNode(
-                        ts.EmitHint.Unspecified,
-                        replaceJsxToTemplateCall(sourceFile),
-                        sourceFile,
-                    );
-                return { contents: code, loader: loader === 'tsx' ? 'ts' : 'js' };
+                const sourceFile = ts.createSourceFile(path, await file.text(), ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
+                const transformed = replaceJsxToTemplateCall(addExtraImports(sourceFile));
+                const code = printer.printFile(transformed);
+                console.log(code);
+                return { contents: code, loader };
             });
         },
     };
