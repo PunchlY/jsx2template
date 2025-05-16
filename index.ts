@@ -164,16 +164,14 @@ function transformation(node: ts.JsxChild) {
     }
     return ts.factory.createObjectLiteralExpression([
         ts.factory.createPropertyAssignment('$$typeof', nameImport('$$typeof')),
-        ts.factory.createMethodDeclaration(
-            [],
+        ts.factory.createPropertyAssignment('toString', ts.factory.createArrowFunction(
             undefined,
-            'toString',
             undefined,
             [],
-            [],
             undefined,
-            ts.factory.createBlock([ts.factory.createReturnStatement(returnValue)]),
-        ),
+            undefined,
+            returnValue,
+        )),
     ]);
 }
 
