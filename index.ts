@@ -10,7 +10,6 @@ function JsxToTemplatePlugin(): Bun.BunPlugin {
                 const sourceFile = ts.createSourceFile(path, await file.text(), ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
                 const transformed = replaceJsxToTemplateCall(addExtraImports(sourceFile));
                 const code = printer.printFile(transformed);
-                console.log(code);
                 return { contents: code, loader };
             });
         },
